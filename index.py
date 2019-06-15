@@ -1,8 +1,12 @@
+import time
+
 import constants
 import credentials
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
@@ -10,6 +14,7 @@ from selenium.common.exceptions import TimeoutException
 
 class Driver:
     def __init__(self, driver=None):
+        self.prefs = {"plugins.always_open_pdf_externally": True}
         self.option = webdriver.ChromeOptions()
         self.driver = driver
 
@@ -22,6 +27,7 @@ class Driver:
     def options_init(self, arguments):
         for arg in arguments:
             self.option.add_argument(arg)
+        self.option.add_experimental_option("prefs", self.prefs)
         return
 
     def driver_init(self):
@@ -37,6 +43,39 @@ class Driver:
             self.driver.get(url)
         except TimeoutException:
             raise Exception('Timed out while trying to navigate to', url)
+
+    def switch_to_active(self):
+        self.driver.switch_to_window(self.driver.window_handles[0])
+        return
+
+
+def get_issues_vols(a_driver):
+    """
+    :param a_driver: Takes in a Driver Object
+    :return: zip list containing (WebElement id of volumes, WebElement of number of issues)
+    """
+    ids = a_driver.find_elements_by_xpath('//*[@id="VolumeTable"]/tbody/tr/td/a')
+    scraped_volumes = []
+    for i in range(len(ids)):
+        ids[i].click()
+        time.sleep(2)
+        volumes = a_driver.find_elements_by_css_selector('.authVolIssue_issue_cell a')
+        for j in range(len(volumes)):
+            volumes[j].click()
+            grab_articles_from_volume(a_driver)
+        scraped_volumes.append(volumes)
+    return list(zip(ids, scraped_volumes))
+
+
+def grab_articles_from_volume(a_driver):
+    pdf_full_text = a_driver.find_elements_by_link_text('PDF Full Text')
+    for i in range(len(pdf_full_text)):
+        pdf_full_text[i].click()
+
+        # Switch to iFrame and download PDF
+        a_driver.switch_to_frame('pdfIframe')
+        open = a_driver.find_element_by_link_text('Open')
+        open.click()
 
 
 if __name__ == '__main__':
@@ -60,4 +99,12 @@ if __name__ == '__main__':
     article_driver.click_css('#block-laurier-custom-content-front-search-tab-journals > div > p:nth-child(3) > a:nth-child(2)')
     article_driver.click_css('#tr_1_basic1 > td:nth-child(2) > div > div > div.service > a')
 
+    # Switch to HBR Tab
+    article_driver.driver.close()
+    time.sleep(30)
+    article_driver.switch_to_active()
+
+    # Wait until page is loaded
+    iss_vol_zl = get_issues_vols(article_driver.driver)
     test = input()
+

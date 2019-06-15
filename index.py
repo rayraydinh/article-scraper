@@ -70,12 +70,26 @@ def get_issues_vols(a_driver):
 def grab_articles_from_volume(a_driver):
     pdf_full_text = a_driver.find_elements_by_link_text('PDF Full Text')
     for i in range(len(pdf_full_text)):
-        pdf_full_text[i].click()
+        time.sleep(2)
+        element = WebDriverWait(a_driver, 10).until(
+            EC.element_to_be_clickable((By.LINK_TEXT, 'PDF Full Text'))
+        )
+        a_driver.execute_script("window.stop();")
+        a_driver.find_elements_by_link_text('PDF Full Text')[i].click()
 
         # Switch to iFrame and download PDF
-        a_driver.switch_to_frame('pdfIframe')
+        element = WebDriverWait(a_driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="pdfIframe"]'))
+        )
+        a_driver.switch_to.frame('pdfIframe')
         open = a_driver.find_element_by_link_text('Open')
         open.click()
+        print("Downloaded article:", str(i + 1))
+
+        # Switch back out of iFrame
+        a_driver.switch_to.default_content()
+        a_driver.execute_script("window.history.go(-1)")
+        # a_driver.find_element_by_tag_name('body').send_keys(Keys.COMMAND + '[')
 
 
 if __name__ == '__main__':
